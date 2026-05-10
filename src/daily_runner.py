@@ -43,6 +43,36 @@ def get_random_schedule():
     return times
 
 
+def send_schedule_email(schedule):
+    """오늘의 발행 계획을 이메일로 발송"""
+    smtp_email = os.environ.get("SMTP_EMAIL", "")
+    smtp_password = os.environ.get("SMTP_PASSWORD", "")
+    notify_email = os.environ.get("NOTIFY_EMAIL", "")
+
+    if not all([smtp_email, smtp_password, notify_email]):
+        return
+
+    from notifier import send_raw_email
+
+    today = datetime.now(KST).strftime("%Y-%m-%d")
+    time_list = "\n".join([f"  #{i+1} {t.strftime('%H:%M')} KST" for i, t in enumerate(schedule)])
+
+    subject = f"[Tistory] {today} 발행 계획 ({len(schedule)}개)"
+    body = f"""오늘의 자동 발행 계획입니다.
+
+날짜: {today}
+발행 개수: {len(schedule)}개
+
+발행 예정 시간:
+{time_list}
+
+각 시간에 자동으로 글이 발행됩니다.
+"""
+
+    send_raw_email(smtp_email, smtp_password, notify_email, subject, body)
+    print("[알림] 발행 계획 이메일 발송 완료")
+
+
 def wait_until(target_time):
     """지정 시간까지 대기"""
     now = datetime.now(KST)
@@ -63,8 +93,7 @@ def main():
 
     if immediate:
         print("\n[즉시 발행 모드]\n")
-        import os as _os
-        _os.environ["POST_COUNT"] = "1"
+        os.environ["POST_COUNT"] = "1"
         from main import run
         run()
         return
@@ -80,10 +109,11 @@ def main():
         print(f"  #{i+1} 예정 시간: {t.strftime('%H:%M')} KST")
     print(f"{'='*50}\n")
 
-    # main.py의 run()을 글 1개씩 호출
-    import os
-    os.environ["POST_COUNT"] = "1"
+    # 발행 계획 이메일 발송
+    send_schedule_email(schedule)
 
+    # main.py의 run()을 글 1개씩 호출
+    os.environ["POST_COUNT"] = "1"
     from main import run
 
     for i, post_time in enumerate(schedule):
