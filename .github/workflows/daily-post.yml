@@ -4,7 +4,12 @@ on:
   schedule:
     # 매일 한국시간 오전 6시 (UTC 21:00 전날)
     - cron: '0 21 * * *'
-  workflow_dispatch: # 수동 실행
+  workflow_dispatch:
+    inputs:
+      immediate:
+        description: '대기 없이 즉시 발행'
+        type: boolean
+        default: true
 
 jobs:
   post:
@@ -35,7 +40,7 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium --with-deps
 
-      - name: Generate and publish posts (1~3개, 랜덤 시간)
+      - name: Generate and publish posts
         working-directory: src
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -45,6 +50,7 @@ jobs:
           SMTP_EMAIL: ${{ secrets.SMTP_EMAIL }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          IMMEDIATE: ${{ github.event.inputs.immediate || 'false' }}
         run: python daily_runner.py
 
       - name: Commit keyword usage update

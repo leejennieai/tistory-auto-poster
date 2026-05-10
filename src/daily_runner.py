@@ -6,6 +6,7 @@
 3. 시간순 정렬 후, 해당 시간까지 대기 → 발행 → 다음 시간 대기 → 발행
 """
 
+import os
 import random
 import time
 from datetime import datetime, timezone, timedelta
@@ -58,6 +59,16 @@ def wait_until(target_time):
 
 
 def main():
+    immediate = os.environ.get("IMMEDIATE", "false").lower() == "true"
+
+    if immediate:
+        print("\n[즉시 발행 모드]\n")
+        import os as _os
+        _os.environ["POST_COUNT"] = "1"
+        from main import run
+        run()
+        return
+
     schedule = get_random_schedule()
 
     print(f"\n{'='*50}")
