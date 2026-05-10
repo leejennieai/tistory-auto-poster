@@ -1,0 +1,56 @@
+name: Daily Tistory Post
+
+on:
+  schedule:
+    # 매일 한국시간 오전 6시 (UTC 21:00 전날)
+    - cron: '0 21 * * *'
+  workflow_dispatch: # 수동 실행
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 600  # 최대 10시간 (랜덤 딜레이 포함)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Generate and publish posts (1~3개, 랜덤 시간)
+        working-directory: src
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          TISTORY_BLOG_NAME: ${{ secrets.TISTORY_BLOG_NAME }}
+          TISTORY_CATEGORY: ${{ secrets.TISTORY_CATEGORY }}
+          SMTP_EMAIL: ${{ secrets.SMTP_EMAIL }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        run: python daily_runner.py
+
+      - name: Commit keyword usage update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add keywords/ auth_state.json
+          git diff --staged --quiet || git commit -m "chore: mark used keyword [skip ci]"
+          git push
