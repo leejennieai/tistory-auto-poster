@@ -12,8 +12,18 @@
 
 from playwright.sync_api import sync_playwright
 from pathlib import Path
+from urllib.parse import urlparse
 
 AUTH_STATE_PATH = Path(__file__).parent.parent / "auth_state.json"
+
+
+def is_logged_in_url(url: str) -> bool:
+    """tistory.com 호스트(서브도메인 포함) 이면서 /auth/ 경로가 아닐 때만 True."""
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    if not (host == "tistory.com" or host.endswith(".tistory.com")):
+        return False
+    return "/auth/" not in parsed.path
 
 
 def setup_login():
@@ -30,11 +40,8 @@ def setup_login():
         print("2차 인증까지 모두 완료하면 됩니다.")
         print("========================================\n")
 
-        # 로그인 완료(=tistory.com 도메인이면서 /auth/ 경로가 아님)까지 대기 (최대 5분)
-        page.wait_for_url(
-            lambda url: "tistory.com" in url and "/auth/" not in url,
-            timeout=300000,
-        )
+        # 로그인 완료(=호스트가 tistory.com이고 /auth/ 경로가 아님)까지 대기 (최대 5분)
+        page.wait_for_url(is_logged_in_url, timeout=300000)
         print("[성공] 로그인 확인됨!")
 
         # 세션 저장
