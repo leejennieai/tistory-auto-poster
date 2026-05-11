@@ -108,19 +108,21 @@ def generate_post(keyword: str, api_key: str) -> dict:
 def _write(client, keyword: str) -> dict:
     message = client.messages.create(
         model=WRITER_MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         system=SYSTEM_PROMPT,
         messages=[
             {"role": "user", "content": POST_PROMPT_TEMPLATE.format(keyword=keyword)}
         ],
     )
+    if message.stop_reason == "max_tokens":
+        print(f"[WARN] 응답이 max_tokens(8192)에서 잘림 - 글이 미완성일 수 있음")
     return _parse_response(message.content[0].text)
 
 
 def _revise(client, keyword: str, draft: dict, guide: str) -> dict:
     message = client.messages.create(
         model=WRITER_MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         system=SYSTEM_PROMPT,
         messages=[
             {
@@ -135,6 +137,8 @@ def _revise(client, keyword: str, draft: dict, guide: str) -> dict:
             }
         ],
     )
+    if message.stop_reason == "max_tokens":
+        print(f"[WARN] 재작성 응답이 max_tokens(8192)에서 잘림")
     return _parse_response(message.content[0].text)
 
 
