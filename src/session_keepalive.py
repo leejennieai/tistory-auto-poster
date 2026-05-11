@@ -26,9 +26,10 @@ def keepalive(blog_name: str) -> bool:
         page = context.new_page()
 
         try:
-            page.goto(f"https://{blog_name}.tistory.com/manage", timeout=30000)
+            # 발행 코드와 동일한 URL 사용 (검증된 경로)
+            page.goto(f"https://{blog_name}.tistory.com/manage/newpost", timeout=30000)
             page.wait_for_load_state("networkidle", timeout=30000)
-            page.wait_for_timeout(1500)
+            page.wait_for_timeout(2000)
 
             if "login" in page.url or "auth" in page.url:
                 print(f"[FAIL] 세션 만료됨 (redirected to {page.url})", file=sys.stderr)
