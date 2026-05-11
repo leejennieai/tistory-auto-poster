@@ -1,5 +1,7 @@
 import anthropic
 
+import seo_reviewer
+
 
 SYSTEM_PROMPT = """당신은 건강 정보를 쉽게 풀어서 전달하는 블로거입니다.
 다양한 자료를 찾아보고 정리해서 독자에게 전달합니다.
@@ -57,21 +59,83 @@ CONTENT:
 (HTML 본문)"""
 
 
+WRITER_MODEL = "claude-haiku-4-5-20251001"
+
+
 def generate_post(keyword: str, api_key: str) -> dict:
-    """Claude Haiku로 블로그 글 생성"""
+    """Claude Haiku로 블로그 글 생성 + Sonnet 리뷰어 검토 후 필요 시 1회 재작성"""
     client = anthropic.Anthropic(api_key=api_key)
 
+    # 1차 작성
+    draft = _write(client, keyword)
+
+    # 검토
+    review_result = seo_reviewer.review(
+        keyword=keyword,
+        title=draft["title"],
+        tags=draft["tags"],
+        content=draft["content"],
+        api_key=api_key,
+    )
+    print(f"[REVIEW] score={review_result['score']} ({review_result['breakdown']})")
+    if review_result["issues"]:
+        print("[REVIEW] issues:")
+        for issue in review_result["issues"][:5]:
+            print(f"  - {issue}")
+
+    if review_result["passed"]:
+        draft["review"] = review_result
+        return draft
+
+    # 재작성 (1회)
+    print(f"[REVIEW] 점수 미달 → 재작성")
+    revised = _revise(client, keyword, draft, review_result["guide"])
+
+    # 재검토 (참고용, 통과 여부 관계없이 발행)
+    second_review = seo_reviewer.review(
+        keyword=keyword,
+        title=revised["title"],
+        tags=revised["tags"],
+        content=revised["content"],
+        api_key=api_key,
+    )
+    print(f"[REVIEW] revised score={second_review['score']} ({second_review['breakdown']})")
+
+    revised["review"] = second_review
+    return revised
+
+
+def _write(client, keyword: str) -> dict:
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=WRITER_MODEL,
         max_tokens=4096,
         system=SYSTEM_PROMPT,
         messages=[
             {"role": "user", "content": POST_PROMPT_TEMPLATE.format(keyword=keyword)}
         ],
     )
+    return _parse_response(message.content[0].text)
 
-    response_text = message.content[0].text
-    return _parse_response(response_text)
+
+def _revise(client, keyword: str, draft: dict, guide: str) -> dict:
+    message = client.messages.create(
+        model=WRITER_MODEL,
+        max_tokens=4096,
+        system=SYSTEM_PROMPT,
+        messages=[
+            {
+                "role": "user",
+                "content": seo_reviewer.REVISE_PROMPT_TEMPLATE.format(
+                    keyword=keyword,
+                    title=draft["title"],
+                    tags=", ".join(draft["tags"]),
+                    content=draft["content"],
+                    guide=guide,
+                ),
+            }
+        ],
+    )
+    return _parse_response(message.content[0].text)
 
 
 def _parse_response(text: str) -> dict:
