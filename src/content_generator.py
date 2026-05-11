@@ -157,8 +157,25 @@ def _parse_response(text: str) -> dict:
         elif in_content:
             content_lines.append(line)
 
+    content = "\n".join(content_lines).strip()
+    content = _strip_code_fence(content)
+
     return {
         "title": title,
         "tags": tags,
-        "content": "\n".join(content_lines).strip(),
+        "content": content,
     }
+
+
+def _strip_code_fence(content: str) -> str:
+    """본문 앞뒤로 감싸진 ```html ... ``` 마크다운 펜스 제거."""
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        lines = stripped.split("\n")
+        # 첫 줄(```html 또는 ```) 제거
+        lines = lines[1:]
+        # 마지막 ``` 줄 제거
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+    return stripped
