@@ -30,8 +30,11 @@ def setup_login():
         print("2차 인증까지 모두 완료하면 됩니다.")
         print("========================================\n")
 
-        # Tistory 메인으로 리다이렉트될 때까지 대기 (최대 5분)
-        page.wait_for_url("**/www.tistory.com/**", timeout=300000)
+        # 로그인 완료(=tistory.com 도메인이면서 /auth/ 경로가 아님)까지 대기 (최대 5분)
+        page.wait_for_url(
+            lambda url: "tistory.com" in url and "/auth/" not in url,
+            timeout=300000,
+        )
         print("[성공] 로그인 확인됨!")
 
         # 세션 저장
