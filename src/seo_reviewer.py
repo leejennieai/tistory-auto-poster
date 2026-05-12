@@ -26,6 +26,25 @@ AI_CLICHE_LIST = [
     "이상으로", "마치며",
 ]
 
+# 가짜 일화 도입 (가족/지인 진단 받았다 식)
+FAKE_ANECDOTE_PHRASES = [
+    "친구가 진단", "지인이 진단", "엄마가 진단", "아버지가 진단",
+    "동생이 진단", "직장 동료가", "옆집 사람이",
+    "친구한테 들었", "지인에게 들었", "친구가 효과",
+]
+
+# 의료법 위반 소지 표현 (건강 블로그는 의사가 아닌 정보 정리자임을 명확히)
+MEDICAL_VIOLATION_PHRASES = [
+    # 치료 효과 단정
+    "낫는다", "낫습니다", "나았", "치료된다", "완치",
+    # 진단성 표현
+    "OO병입니다", "X 수치면 병원", "이런 증상이면 OO",
+    # 처방 권유
+    "드시면 좋습니다", "드세요", "복용하세요",
+    # 진료 흉내
+    "병원 안 가도", "수술 안 받아도",
+]
+
 
 REVIEW_SYSTEM = """당신은 한국어 블로그 글의 SEO와 가독성을 평가하는 전문 에디터입니다.
 구글/네이버 검색 상위 노출과 독자 체류시간을 기준으로 냉정하게 평가합니다.
@@ -55,8 +74,14 @@ REVIEW_PROMPT = """다음 블로그 글을 평가해주세요.
 - 태그가 키워드와 관련 있음
 - 키워드에서 동떨어진 주제로 흐른다면 큰 감점
 
-### 2. AI 티 없음 (20점)
-- 다음 클리셰 사용 시 항목당 -3점:
+### 2. AI 티 없음 + 안전성 (20점)
+- **의료법 위반 소지 표현 (1개라도 발견 시 즉시 -15점 + ISSUES 필수 보고)**:
+  {medical_list}
+  → 의사가 아니므로 치료/진단/처방 표현 절대 금지
+- **가짜 일화 도입 (1개라도 발견 시 -10점)**:
+  {fake_anecdote_list}
+  → "친구가 진단 받았대요" 같은 가짜 1·3인칭 일화는 신뢰도 ↓ + HCU 페널티
+- AI 클리셰 사용 시 항목당 -3점:
   {cliche_list}
 - 모든 문단이 "~입니다/~합니다"로 끝나면 -5점
 - "첫째/둘째/셋째" 또는 "1.2.3." 기계적 나열 -5점
@@ -142,6 +167,8 @@ def review(keyword: str, title: str, tags: list, content: str, api_key: str) -> 
                     tags=", ".join(tags) if tags else "",
                     content=content,
                     cliche_list=", ".join(f'"{c}"' for c in AI_CLICHE_LIST),
+                    fake_anecdote_list=", ".join(f'"{c}"' for c in FAKE_ANECDOTE_PHRASES),
+                    medical_list=", ".join(f'"{c}"' for c in MEDICAL_VIOLATION_PHRASES),
                 ),
             }
         ],
