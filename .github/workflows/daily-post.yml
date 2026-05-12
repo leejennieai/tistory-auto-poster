@@ -40,6 +40,14 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium --with-deps
 
+      - name: Ensure Tistory session (auto-relogin if expired)
+        working-directory: src
+        env:
+          TISTORY_BLOG_NAME: ${{ secrets.TISTORY_BLOG_NAME }}
+          KAKAO_EMAIL: ${{ secrets.KAKAO_EMAIL }}
+          KAKAO_PASSWORD: ${{ secrets.KAKAO_PASSWORD }}
+        run: python session_keepalive.py
+
       - name: Generate and publish posts
         working-directory: src
         env:
@@ -53,7 +61,17 @@ jobs:
           IMMEDIATE: ${{ github.event.inputs.immediate || 'false' }}
         run: python daily_runner.py
 
+      - name: Upload debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-post-debug
+          path: debug/
+          retention-days: 7
+          if-no-files-found: ignore
+
       - name: Commit keyword usage update
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

@@ -1,11 +1,8 @@
 name: Tistory Session Keepalive
 
 on:
-  schedule:
-    # 하루 3회, 8시간 간격 (KST 02/10/18시 = UTC 17/01/09시 전날)
-    - cron: '0 17 * * *'
-    - cron: '0 1 * * *'
-    - cron: '0 9 * * *'
+  # cron 비활성화: daily-post 워크플로가 발행 직전 세션 체크 + 자동 로그인 수행.
+  # 이 워크플로는 디버깅/수동 갱신 용도로만 유지 (workflow_dispatch).
   workflow_dispatch:
 
 jobs:
