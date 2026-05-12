@@ -1,0 +1,59 @@
+name: Tistory Session Keepalive
+
+on:
+  schedule:
+    # 1시간 간격 (시작 시 0~50분 랜덤 sleep으로 jitter 추가)
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Random delay (0~50 min, jitter)
+        if: github.event_name == 'schedule'
+        run: |
+          DELAY=$((RANDOM % 3000))
+          echo "Sleeping ${DELAY}s before keepalive"
+          sleep $DELAY
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium --with-deps
+
+      - name: Refresh Tistory session
+        working-directory: src
+        env:
+          TISTORY_BLOG_NAME: ${{ secrets.TISTORY_BLOG_NAME }}
+        run: python session_keepalive.py
+
+      - name: Commit refreshed auth_state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase || true
+          git add auth_state.json
+          git diff --staged --quiet || git commit -m "chore: refresh tistory session [skip ci]"
+          git push

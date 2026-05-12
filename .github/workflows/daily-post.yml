@@ -40,14 +40,6 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium --with-deps
 
-      - name: Ensure Tistory session (auto-relogin if expired)
-        working-directory: src
-        env:
-          TISTORY_BLOG_NAME: ${{ secrets.TISTORY_BLOG_NAME }}
-          KAKAO_EMAIL: ${{ secrets.KAKAO_EMAIL }}
-          KAKAO_PASSWORD: ${{ secrets.KAKAO_PASSWORD }}
-        run: python session_keepalive.py
-
       - name: Generate and publish posts
         working-directory: src
         env:
