@@ -78,22 +78,37 @@ def login_with_credentials(email: str, password: str, headless: bool = True) -> 
                 _save_debug(page, "no_kakao_btn")
                 return False
 
-            # 3. 카카오 로그인 페이지 로딩 대기
-            page.wait_for_url("**/kauth.kakao.com/**", timeout=15000)
+            # 3. 카카오 로그인 페이지 로딩 대기 (accounts.kakao.com 또는 kauth.kakao.com)
+            page.wait_for_url(
+                lambda url: "kakao.com" in url and ("login" in url or "authorize" in url),
+                timeout=15000,
+            )
             page.wait_for_load_state("networkidle", timeout=15000)
 
-            # 4. 이메일 입력 (여러 셀렉터)
+            # 4. 이메일 입력 - 셀렉터 시도 + 폼 등장 대기
             email_selectors = [
                 'input[name="loginKey"]',
                 'input[name="email"]',
+                'input[name="loginId"]',
                 'input[type="email"]',
                 'input#loginKey--1',
                 'input#input-loginKey',
+                'input[placeholder*="이메일"]',
+                'input[placeholder*="아이디"]',
             ]
             filled = False
+            # 폼 자체가 나타날 때까지 최대 10초 대기
+            try:
+                page.wait_for_selector(
+                    ", ".join(email_selectors),
+                    timeout=10000,
+                )
+            except Exception:
+                pass
+
             for sel in email_selectors:
                 try:
-                    page.fill(sel, email, timeout=3000)
+                    page.fill(sel, email, timeout=2000)
                     filled = True
                     break
                 except Exception:
