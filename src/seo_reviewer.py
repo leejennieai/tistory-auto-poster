@@ -1,10 +1,11 @@
 """SEO + 콘텐츠 품질 검토자 (건강 블로그용)
 
-Sonnet 4.6으로 7축 평가 (각 점수 합 100)
-- 키워드 정합성 15
+Sonnet 4.6으로 8축 평가 (각 점수 합 100)
+- 제목 품질 15
+- 키워드 정합성 10
 - 글 구조 정확성 15
-- AI 티 없음 + 의료 안전성 20
-- 구글 SEO 15
+- AI 티 없음 + 의료 안전성 15
+- 구글 SEO 10
 - 자연스러움/가독성 15
 - 정보 가치 (구체성/깊이) 10
 - 후크/유지력 10
@@ -57,6 +58,8 @@ REVIEW_PROMPT = """다음 블로그 글을 평가해주세요.
 
 **키워드**: {keyword}
 
+{date_constraint}
+
 **제목**: {title}
 
 **태그**: {tags}
@@ -66,55 +69,68 @@ REVIEW_PROMPT = """다음 블로그 글을 평가해주세요.
 
 ---
 
-평가 기준 (7축 합 100점, 엄격하게 채점):
+평가 기준 (8축 합 100점, 엄격하게 채점):
 
-### 1. 키워드 정합성 (15점)
-- 글이 키워드 의도에서 정확히 답함 (벗어나면 -10점)
+### 1. **제목 품질 (15점, 엄격) — 핵심 평가**
+SEO와 클릭률을 결정하는 가장 중요한 요소.
+
+- **글자 수 25~35자** (벗어나면 -3점)
+- **핵심 키워드가 제목 앞 20자 안에 등장** (모바일 SERP 잘림 방지)
+  예: 키워드 "당뇨" → "당뇨 초기증상 정리와 관리 방법" OK
+       "건강하게 살기 위한 당뇨 관리 방법" NG (앞에 키워드 없음)
+- **날짜 정확성**: 위 "오늘 날짜" 외 다른 연/월 사용 시 **즉시 -10점**
+  (단, 정보성 글이라 날짜 표기 자체는 선택)
+- **검색 친화 단어** 1개 이상 포함 권장:
+  정보형 → "정리", "총정리", "한눈에", "방법"
+  비교형 → "차이", "비교", "vs"
+  하우투 → "하는 법", "꿀팁"
+- **숫자 포함 권장** ("5가지", "7단계", "TOP 10") — 클릭률 ↑
+- **과장/낚시 표현 금지** (-5점): "충격적", "이거 모르면 큰일", "역대급",
+  "꼭 알아야 할", "안 보면 후회", "놀라운"
+- **이모지/특수문자 과다** 금지 (-3점)
+- **자연스러운 한국어** (-3점): "Tip!", "Total guide" 같은 영어 혼용 감점
+
+### 2. 키워드 정합성 (10점)
+- 글이 키워드 의도에서 정확히 답함
 - 첫 문단 100자 이내 키워드 1회 등장
-- 본문 4~6회, H2 소제목 2개 이상에 키워드 변형 포함
+- 본문 4~6회, H2 소제목 2개 이상에 키워드 변형
 - 태그가 키워드와 관련 있음
 
-### 2. **글 구조 정확성 (15점, 엄격 적용)**
+### 3. **글 구조 정확성 (15점, 엄격)**
 - H2 소제목 **3~4개** (2개 이하면 -8점, 5개 이상이면 -3점)
 - 각 H2 섹션마다 **최소 3문단 이상** 내용 (빈 섹션 절대 X)
-- 도입 (2~3문장) + 본문 (H2별 분할) + 마무리 (1~2문장) 구조 명확
-- 본문 글자수 (HTML 태그 제외) **1800~3000자** (벗어나면 -5점)
-- 한 문단이 6줄 이상 길게 늘어지면 모바일 가독성 -3점
+- 도입 + 본문 + 마무리 구조 명확
+- 본문 글자수 (HTML 태그 제외) **1800~3000자**
+- 한 문단이 6줄 이상 늘어지면 모바일 가독성 -3점
 
-### 3. AI 티 없음 + 의료 안전성 (20점)
-- **의료법 위반 표현 (1개라도 발견 시 즉시 -15점 + ISSUES 필수 보고)**:
+### 4. AI 티 없음 + 의료 안전성 (15점)
+- **의료법 위반 표현 (1개라도 -15점)**:
   {medical_list}
-  → 의사가 아니므로 치료/진단/처방 표현 절대 금지
-- **가짜 일화 도입 (1개라도 발견 시 -10점)**:
+- **가짜 일화 도입 (1개라도 -10점)**:
   {fake_anecdote_list}
-  → "친구가 진단 받았대요" 같은 가짜 1·3인칭 일화는 신뢰도 ↓ + HCU 페널티
 - AI 클리셰 사용 시 항목당 -3점:
   {cliche_list}
 - 모든 문단 격식체 종결 -5점
 - "첫째/둘째/셋째" 기계적 나열 -5점
-- 같은 문장 시작 패턴 3회 이상 반복 -3점
 
-### 4. 구글 SEO (15점)
-- 제목 25~35자, 키워드 앞쪽 배치
-- 검색 의도 매칭 (정보형 → 정보 제공, 비교형 → 비교, 하우투 → 방법)
-- 메타 정보 (TITLE, 태그) 키워드 정합
+### 5. 구글 SEO (10점, 제목 외 측면)
+- 검색 의도 매칭 (정보형/비교형/하우투에 맞는 답변 형식)
+- 메타 정보 (태그) 키워드 정합
+- 본문 키워드 밀도 적절 (1.5~3%)
 
-### 5. 자연스러움 / 가독성 (15점)
+### 6. 자연스러움 / 가독성 (15점)
 - 문단 길이 다양 (모바일 기준 한 문단 3~5줄)
-- 문장 길이 섞임 (짧은 + 긴)
-- 구어체 자연스러움 ("근데", "사실", "그래서" 등 적절히)
-- 같은 단어/표현 과반복 없음
+- 문장 길이 섞임
+- 구어체 자연스러움
+- 같은 단어 과반복 없음
 
-### 6. 정보 가치 - 구체성/깊이 (10점, 엄격)
-- **구체적 수치/사례/비교가 글에 최소 2개 이상**
-- 단순 정의/설명만 나열하면 -5점
-- 어디서나 보일 평이한 내용이면 -3점
-- 독자의 후속 질문에 답하는 깊이 있는 정보면 가점
+### 7. 정보 가치 - 구체성/깊이 (10점)
+- 구체적 수치/사례/비교가 글에 최소 2개 이상
+- 단순 정의만 나열하면 -5점
 
-### 7. 후크 / 유지력 (10점)
-- 첫 문단(도입)이 "왜 끝까지 읽어야 하는지" 동기 부여
-- 마지막에 다음 액션이나 정리감 (단, 클리셰 결론은 -3점)
-- 글 끝에 면책 디스클레이머 ("본 글은 일반 정보 제공 목적..." 등) 있으면 +2점
+### 8. 후크 / 유지력 (10점)
+- 첫 문단이 "왜 끝까지 읽어야 하는지" 동기 부여
+- 글 끝에 면책 디스클레이머 있으면 +2점
 
 ---
 
@@ -122,15 +138,20 @@ REVIEW_PROMPT = """다음 블로그 글을 평가해주세요.
 
 SCORE: (0~100 정수)
 PASS: (YES 또는 NO, 80 이상이면 YES)
-BREAKDOWN: 정합성 X/15, 구조 X/15, AI/안전 X/20, SEO X/15, 가독성 X/15, 정보가치 X/10, 후크 X/10
+BREAKDOWN: 제목 X/15, 정합성 X/10, 구조 X/15, AI/안전 X/15, SEO X/10, 가독성 X/15, 정보가치 X/10, 후크 X/10
+TITLE_CHECK:
+  - 글자 수: N자
+  - 키워드 위치: 앞 N자 내 ✓/✗
+  - 날짜: ✓/✗/N/A
+  - 검색 친화 단어: (있다면 어떤 단어)
+  - 숫자: ✓/✗
+  - 과장/낚시: ✓ (없음) / ✗ (어떤 표현)
 STRUCTURE_CHECK: H2 개수 N개 / 각 섹션 문단 수 / 본문 글자수 N자
 ISSUES:
 - (구체적 문제점 1)
-- (구체적 문제점 2)
 ...
 REVISE_GUIDE:
-- (재작성 시 지킬 명확한 지침 1)
-- (재작성 시 지킬 명확한 지침 2)
+- (재작성 시 지킬 지침 1)
 ...
 """
 
@@ -157,13 +178,27 @@ CONTENT:
 (HTML 본문)"""
 
 
-def review(keyword: str, title: str, tags: list, content: str, api_key: str) -> dict:
+def review(
+    keyword: str,
+    title: str,
+    tags: list,
+    content: str,
+    api_key: str,
+    today_year_month: str = "",
+) -> dict:
     """글을 평가하여 점수와 가이드 반환."""
     client = anthropic.Anthropic(api_key=api_key)
 
+    date_constraint = (
+        f"**오늘 날짜 (제목/본문 날짜 표기 검증용)**: {today_year_month}\n"
+        f"제목에 다른 연/월이 나타나면 즉시 -10점."
+        if today_year_month
+        else ""
+    )
+
     message = client.messages.create(
         model=REVIEWER_MODEL,
-        max_tokens=2000,
+        max_tokens=2500,
         system=REVIEW_SYSTEM,
         messages=[
             {
@@ -176,6 +211,7 @@ def review(keyword: str, title: str, tags: list, content: str, api_key: str) -> 
                     cliche_list=", ".join(f'"{c}"' for c in AI_CLICHE_LIST),
                     fake_anecdote_list=", ".join(f'"{c}"' for c in FAKE_ANECDOTE_PHRASES),
                     medical_list=", ".join(f'"{c}"' for c in MEDICAL_VIOLATION_PHRASES),
+                    date_constraint=date_constraint,
                 ),
             }
         ],
@@ -188,33 +224,43 @@ def _parse_review(text: str) -> dict:
     score = 0
     passed = False
     breakdown = ""
+    title_check_lines = []
     structure_check = ""
     issues = []
     guide_lines = []
     in_issues = False
     in_guide = False
+    in_title_check = False
 
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.startswith("SCORE:"):
             m = re.search(r"\d+", stripped)
             score = int(m.group()) if m else 0
-            in_issues = in_guide = False
+            in_issues = in_guide = in_title_check = False
         elif stripped.startswith("PASS:"):
             passed = "YES" in stripped.upper()
-            in_issues = in_guide = False
+            in_issues = in_guide = in_title_check = False
         elif stripped.startswith("BREAKDOWN:"):
             breakdown = stripped.replace("BREAKDOWN:", "").strip()
+            in_issues = in_guide = in_title_check = False
+        elif stripped.startswith("TITLE_CHECK:"):
+            in_title_check = True
             in_issues = in_guide = False
+            rest = stripped.replace("TITLE_CHECK:", "").strip()
+            if rest:
+                title_check_lines.append(rest)
         elif stripped.startswith("STRUCTURE_CHECK:"):
             structure_check = stripped.replace("STRUCTURE_CHECK:", "").strip()
-            in_issues = in_guide = False
+            in_issues = in_guide = in_title_check = False
         elif stripped.startswith("ISSUES:"):
             in_issues = True
-            in_guide = False
+            in_title_check = in_guide = False
         elif stripped.startswith("REVISE_GUIDE:"):
-            in_issues = False
+            in_issues = in_title_check = False
             in_guide = True
+        elif in_title_check and stripped:
+            title_check_lines.append(stripped)
         elif in_issues and stripped.startswith("-"):
             issues.append(stripped.lstrip("- ").strip())
         elif in_guide and stripped.startswith("-"):
@@ -224,6 +270,7 @@ def _parse_review(text: str) -> dict:
         "score": score,
         "passed": passed or score >= SCORE_THRESHOLD,
         "breakdown": breakdown,
+        "title_check": "\n  ".join(title_check_lines),
         "structure_check": structure_check,
         "issues": issues,
         "guide": "\n".join(f"- {g}" for g in guide_lines),
