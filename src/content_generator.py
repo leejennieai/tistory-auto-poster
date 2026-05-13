@@ -96,6 +96,8 @@ def generate_post(keyword: str, api_key: str) -> dict:
         api_key=api_key,
     )
     print(f"[REVIEW] score={review_result['score']} ({review_result['breakdown']})")
+    if review_result.get("structure_check"):
+        print(f"[REVIEW] structure: {review_result['structure_check']}")
     if review_result["issues"]:
         print("[REVIEW] issues:")
         for issue in review_result["issues"][:5]:
@@ -106,7 +108,7 @@ def generate_post(keyword: str, api_key: str) -> dict:
         return draft
 
     # 재작성 (1회)
-    print(f"[REVIEW] 점수 미달 → 재작성")
+    print(f"[REVIEW] 점수 미달 (임계값 {seo_reviewer.SCORE_THRESHOLD}) → 재작성")
     revised = _revise(client, keyword, draft, review_result["guide"])
 
     # 재검토 (참고용, 통과 여부 관계없이 발행)
