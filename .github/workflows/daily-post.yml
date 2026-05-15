@@ -40,6 +40,27 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium
 
+      - name: Restore auth_state from cache
+        id: restore-auth
+        uses: actions/cache/restore@v4
+        with:
+          path: auth_state.json
+          key: tistory-session-${{ github.run_id }}
+          restore-keys: |
+            tistory-session-
+
+      - name: Bootstrap auth_state from secret (cache miss only)
+        if: steps.restore-auth.outputs.cache-matched-key == ''
+        env:
+          AUTH_STATE_B64: ${{ secrets.AUTH_STATE_B64 }}
+        run: |
+          if [ -z "$AUTH_STATE_B64" ]; then
+            echo "[ERROR] cache miss + AUTH_STATE_B64 secret 없음"
+            exit 1
+          fi
+          echo "$AUTH_STATE_B64" | base64 -d > auth_state.json
+          echo "[OK] AUTH_STATE_B64 secret으로 부트스트랩"
+
       - name: Generate and publish posts
         working-directory: src
         env:
@@ -52,6 +73,13 @@ jobs:
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
           IMMEDIATE: ${{ github.event.inputs.immediate || 'false' }}
         run: python daily_runner.py
+
+      - name: Save auth_state to cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: auth_state.json
+          key: tistory-session-${{ github.run_id }}
 
       - name: Upload debug artifacts on failure
         if: failure()
@@ -67,7 +95,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add keywords/ auth_state.json
+          git add keywords/
           if git diff --staged --quiet; then
             echo "변경 사항 없음"
             exit 0

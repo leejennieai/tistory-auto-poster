@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 debug_*.png
 debug/
+# 세션 쿠키 — repo에 절대 commit 금지 (GitHub Actions Cache 사용)
+auth_state.json
