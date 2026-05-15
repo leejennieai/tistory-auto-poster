@@ -143,33 +143,31 @@ def publish_post(
                 _human_pause(2000, 3500)
                 print("[썸네일] 대표이미지 업로드 완료")
 
-            # 8. 공개 발행 클릭 (최대 2회 시도)
-            published = False
-            for attempt in range(1, 3):
-                _human_click(page, "#publish-btn", wait_after=(3000, 5000))
-                published = _verify_published(page, blog_name, title)
-                if published:
-                    print(f"[OK] 발행 확인 (시도 {attempt})")
-                    break
-                print(f"[WARN] 발행 미확인 (시도 {attempt}/2), 재시도...")
-                _human_pause(2000, 4000)
-                # 모달이 닫혔으면 다시 열기
-                if not page.locator("#publish-btn").is_visible():
-                    try:
-                        _human_click(page, "#publish-layer-btn", wait_after=(1500, 2500))
-                        _human_click(page, "#open20", wait_after=(500, 1000))
-                    except Exception:
-                        break
+            # 8. 공개 발행 클릭 (1회 시도, URL 변화 기반 검증)
+            _human_click(page, "#publish-btn", wait_after=(2000, 3500))
+
+            # URL이 newpost에서 벗어나길 최대 15초 대기 (실제 발행 신호)
+            published = _wait_url_change(page, max_wait_sec=15)
 
             if not published:
-                print("[WARN] 공개 발행 실패 → 임시저장 가능성")
-                # 마지막 진단 + URL 추출 시도
+                # 모달이 아직 떠있거나 페이지 미반응 → 한 번 더 클릭
+                print("[INFO] 발행 후 URL 미변경, 한 번 더 시도")
+                try:
+                    if page.locator("#publish-btn").is_visible():
+                        _human_click(page, "#publish-btn", wait_after=(2000, 3500))
+                        published = _wait_url_change(page, max_wait_sec=15)
+                except Exception:
+                    pass
+
+            if not published:
+                print("[WARN] 공개 발행 미확인 → 임시저장 가능성")
                 post_url = _find_post_url(page, blog_name, title) or (
                     f"https://{blog_name}.tistory.com (임시저장 추정)"
                 )
                 browser.close()
-                # 임시저장이라도 raise하지 않고 URL 반환 (호출자가 알림 등 처리)
                 return post_url
+
+            print("[OK] 발행 URL 변화 감지 완료")
 
             # 9. URL 추출
             post_url = _find_post_url(page, blog_name, title) or (
@@ -186,18 +184,25 @@ def publish_post(
             browser.close()
 
 
-def _verify_published(page, blog_name: str, title: str) -> bool:
-    """공개 발행이 실제로 완료됐는지 확인.
-
-    여러 신호로 검증:
-    1. URL이 더 이상 newpost가 아님 (관리 페이지로 이동)
-    2. 관리 페이지에서 제목으로 검색 시 "공개" 상태 글 발견
+def _wait_url_change(page, max_wait_sec: int = 15) -> bool:
+    """공개 발행 후 URL이 /newpost에서 벗어나는지 대기.
+    Tistory가 실제 발행 처리하면 URL이 글 상세나 관리 페이지로 자동 이동.
     """
     try:
-        # 잠시 대기 (Tistory가 발행 처리할 시간)
+        page.wait_for_url(
+            lambda url: "newpost" not in url,
+            timeout=max_wait_sec * 1000,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _verify_published(page, blog_name: str, title: str) -> bool:
+    """관리 페이지에서 글 공개 상태 직접 확인 (참고용)."""
+    try:
         page.wait_for_timeout(2000)
 
-        # URL이 발행 후 페이지로 바뀌었는지
         current = page.url
         if "newpost" not in current and "manage" in current:
             return True
