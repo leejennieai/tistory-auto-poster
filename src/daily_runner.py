@@ -3,7 +3,8 @@
 매일 오전 6시(KST)에 실행되어:
 1. 오늘 발행할 글 개수를 1~3개 랜덤 선택
 2. 각 글의 발행 시간을 오전 7시~오후 10시 사이에서 랜덤 선택
-3. 시간순 정렬 후, 해당 시간까지 대기 → 발행 → 다음 시간 대기 → 발행
+3. 2개 이상이면 발행 시간끼리 최소 30분 이상 차이나게 조정
+4. 시간순 정렬 후, 해당 시간까지 대기 → 발행 → 다음 시간 대기 → 발행
 """
 
 import os
@@ -14,32 +15,46 @@ from datetime import datetime, timezone, timedelta
 KST = timezone(timedelta(hours=9))
 
 # 발행 시간 범위 (KST 기준)
-START_HOUR = 7   # 오전 7시부터
-END_HOUR = 22    # 오후 10시까지
-MAX_POSTS = 3    # 최대 3개
+START_HOUR = 7        # 오전 7시부터
+END_HOUR = 22         # 오후 10시까지
+MAX_POSTS = 3         # 최대 3개
+MIN_GAP_MINUTES = 30  # 발행 간 최소 간격 30분
 
 
 def get_random_schedule():
-    """오늘 발행할 개수와 시간을 랜덤 생성"""
+    """오늘 발행할 개수와 시간을 랜덤 생성. 2개 이상이면 최소 30분 간격 강제."""
     post_count = random.randint(1, MAX_POSTS)
 
     now_kst = datetime.now(KST)
     today = now_kst.date()
 
-    # 랜덤 발행 시간 생성
+    # 가용 분 슬롯 → 셔플 후 간격 조건 만족하는 것만 선택
+    available_minutes = list(range(START_HOUR * 60, END_HOUR * 60))
+    random.shuffle(available_minutes)
+
+    selected_minutes = []
+    for m in available_minutes:
+        if len(selected_minutes) >= post_count:
+            break
+        # 기존 선택 시간과 최소 간격 검증
+        if all(abs(m - u) >= MIN_GAP_MINUTES for u in selected_minutes):
+            selected_minutes.append(m)
+
     times = []
-    for _ in range(post_count):
-        hour = random.randint(START_HOUR, END_HOUR - 1)
-        minute = random.randint(0, 59)
-        post_time = datetime(today.year, today.month, today.day, hour, minute, tzinfo=KST)
-
-        # 이미 지난 시간이면 20분 후로 조정
+    min_post_time = now_kst + timedelta(minutes=20)
+    for m in sorted(selected_minutes):
+        hour = m // 60
+        minute = m % 60
+        post_time = datetime(
+            today.year, today.month, today.day, hour, minute, tzinfo=KST
+        )
+        # 이미 지난 시간이면 현재보다 20분 뒤로 밀고, 최종 순서에서도 간격 보장
         if post_time <= now_kst:
-            post_time = now_kst + timedelta(minutes=20)
-
+            post_time = min_post_time
+        if times and post_time < times[-1] + timedelta(minutes=MIN_GAP_MINUTES):
+            post_time = times[-1] + timedelta(minutes=MIN_GAP_MINUTES)
         times.append(post_time)
 
-    times.sort()
     return times
 
 
