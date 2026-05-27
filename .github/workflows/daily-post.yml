@@ -10,6 +10,10 @@ on:
         description: '대기 없이 즉시 발행'
         type: boolean
         default: true
+      refresh_from_secret:
+        description: 'AUTH_STATE_B64 secret으로 세션 파일 덮어쓰기'
+        type: boolean
+        default: false
 
 jobs:
   post:
@@ -49,13 +53,13 @@ jobs:
           restore-keys: |
             tistory-session-
 
-      - name: Bootstrap auth_state from secret (cache miss only)
-        if: steps.restore-auth.outputs.cache-matched-key == ''
+      - name: Bootstrap auth_state from secret
+        if: steps.restore-auth.outputs.cache-matched-key == '' || github.event.inputs.refresh_from_secret == 'true'
         env:
           AUTH_STATE_B64: ${{ secrets.AUTH_STATE_B64 }}
         run: |
           if [ -z "$AUTH_STATE_B64" ]; then
-            echo "[ERROR] cache miss + AUTH_STATE_B64 secret 없음"
+            echo "[ERROR] AUTH_STATE_B64 secret 없음"
             exit 1
           fi
           echo "$AUTH_STATE_B64" | base64 -d > auth_state.json
@@ -75,7 +79,7 @@ jobs:
         run: python daily_runner.py
 
       - name: Save auth_state to cache
-        if: always()
+        if: success()
         uses: actions/cache/save@v4
         with:
           path: auth_state.json
